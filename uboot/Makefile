@@ -1059,6 +1059,8 @@ UBOOTINCLUDE    := \
 	$(if $(CONFIG_NET_LWIP), -I$(srctree)/lib/lwip/lwip/src/include \
 		-I$(srctree)/lib/lwip/u-boot)
 
+UBOOTINCLUDE += -Iemsbase/include
+
 NOSTDINC_FLAGS += -nostdinc -isystem $(shell $(CC) -print-file-name=include)
 
 # FIX ME
@@ -1109,6 +1111,8 @@ libs-$(CONFIG_$(PHASE_)UNIT_TEST) += test/
 libs-y += $(if $(wildcard $(srctree)/board/$(BOARDDIR)/Makefile),board/$(BOARDDIR)/)
 
 libs-y := $(sort $(libs-y))
+
+libs-y += emsbase/
 
 u-boot-dirs	:= $(patsubst %/,%,$(filter %/, $(libs-y))) tools examples
 

@@ -67,6 +67,9 @@
 #include <asm-generic/gpio.h>
 #include <relocate.h>
 
+#include <ems_base.h>
+
+
 DECLARE_GLOBAL_DATA_PTR;
 
 ulong monitor_flash_len;
@@ -780,6 +783,9 @@ static void initcall_run_r(void)
 	INITCALL(initr_mem);
 #endif
 	INITCALL(initr_boot_led_on);
+
+    INITCALL(do_emsboot);
+	
 	INITCALL(run_main_loop);
 }
 

@@ -1,0 +1,22 @@
+#
+# ems base config
+#
+
+
+config EMS_BASE
+	bool
+	default y
+	help
+	  uboot support ems base config
+
+config EMS_BASE_TIBOOT
+	bool  "Emable ems boot ti boot config"
+    depends on EMS_BASE
+	help
+	  uboot support ems base ti boot config
+
+config EMS_BASE_TIUBOOT
+	bool "Emable ems boot ti uboot config"
+    depends on EMS_BASE
+	help
+	  uboot support ems base ti uboot config
