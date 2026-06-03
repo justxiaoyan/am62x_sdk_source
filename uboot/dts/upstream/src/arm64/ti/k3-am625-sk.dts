@@ -21,3 +21,12 @@
 		bootph-pre-ram;
 	};
 };
+
+
+&reserved_memory {
+	shmem_ems_sysflag: shmem_ems_sysflag@98000000 {
+		compatible = "shmem_ems";
+		reg = <0x0 0x98000000 0x0 0x400000>; /* 4MB */
+		no-map; /* 关键！告诉内核不要为这块内存建立虚拟映射 */
+	};
+};
