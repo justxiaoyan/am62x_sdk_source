@@ -1,0 +1,211 @@
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
+/*
+ * ALIENTEK ATK-DLAM62xB device tree
+ */
+
+/dts-v1/;
+
+#include "k3-am625.dtsi"
+#include "k3-am62x-sk-common.dtsi"
+
+/ {
+	model = "ALIENTEK ATK-DLAM62xB";
+	compatible = "alientek,atk-dlam62xb", "ti,am625";
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x00000000 0x80000000 0x00000000 0x40000000>;
+		bootph-pre-ram;
+	};
+
+	pdm_bus: pdm-bus {
+		compatible = "pdm,bus-type";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		main_mcu: mcu@1 {
+			compatible = "pdm,mcu-can";
+			reg = <1>;
+			pdm,id = <0>;
+			pdm,name = "main_mcu";
+			can-controller = <&main_mcan0>;
+			pdm,rx-timeout-ms = <100>;
+			pdm,can-fd;
+		};
+
+		satellite: satellite@2 {
+			compatible = "pdm,satellite-can";
+			reg = <2>;
+			pdm,id = <0>;
+			pdm,name = "satellite";
+			can-controller = <&mcu_mcan0>;
+			pdm,rx-timeout-ms = <100>;
+			pdm,can-fd;
+		};
+	};
+
+	/* These peripherals are specific to the TI AM625 SK. */
+	/delete-node/ leds;
+	/delete-node/ clk-0;
+	/delete-node/ sound;
+	/delete-node/ connector-hdmi;
+};
+
+&main_i2c0 {
+	/delete-node/ eeprom@51;
+	/delete-node/ tps6598x@3f;
+};
+
+&main_i2c1 {
+	/delete-node/ audio-codec@1b;
+	/delete-node/ bridge-hdmi@3b;
+};
+
+&usb0 {
+	/delete-property/ usb-role-switch;
+	/delete-node/ port;
+};
+
+&mcasp1 {
+	status = "disabled";
+};
+
+&dss {
+	status = "disabled";
+};
+
+&dss_ports {
+	/delete-node/ port@1;
+};
+
+&main_pmx0 {
+	atk_main_mcan0_pins_default: atk-main-mcan0-default-pins {
+		pinctrl-single,pins = <
+			AM62X_IOPAD(0x01dc, PIN_INPUT, 0) /* (E15) MCAN0_RX */
+			AM62X_IOPAD(0x01d8, PIN_OUTPUT, 0) /* (C15) MCAN0_TX */
+		>;
+	};
+
+	/* Servo/debug PWM on fan connector J15 pin 4. */
+	atk_epwm0_b_pins_default: atk-epwm0b-default-pins {
+		pinctrl-single,pins = <
+			AM62X_IOPAD(0x01b8, PIN_OUTPUT, 2) /* (C13) SPI0_CS1.EHRPWM0_B */
+		>;
+	};
+};
+
+&mcu_pmx0 {
+	atk_mcu_mcan0_pins_default: atk-mcu-mcan0-default-pins {
+		pinctrl-single,pins = <
+			AM62X_MCU_IOPAD(0x034, PIN_OUTPUT, 0) /* (D6) MCU_MCAN0_TX */
+			AM62X_MCU_IOPAD(0x038, PIN_INPUT, 0)  /* (B3) MCU_MCAN0_RX */
+		>;
+	};
+};
+
+&main_mcan0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&atk_main_mcan0_pins_default>;
+	status = "okay";
+};
+
+&mcu_mcan0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&atk_mcu_mcan0_pins_default>;
+	status = "okay";
+};
+
+&epwm0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&atk_epwm0_b_pins_default>;
+	status = "okay";
+};
+
+/* The TF card and VDDSHV_SDIO are supplied directly from fixed 3.3 V. */
+&sdhci1 {
+	max-frequency = <25000000>;
+	no-1-8-v;
+	ti,otap-del-sel-legacy = <0x8>;
+	ti,otap-del-sel-sd-hs = <0x0>;
+	ti,otap-del-sel-sdr12 = <0x0>;
+	ti,otap-del-sel-sdr25 = <0x0>;
+	ti,otap-del-sel-sdr50 = <0x8>;
+	ti,otap-del-sel-sdr104 = <0x7>;
+	ti,otap-del-sel-ddr50 = <0x4>;
+	ti,itap-del-sel-legacy = <0xa>;
+	ti,itap-del-sel-sd-hs = <0x1>;
+	ti,itap-del-sel-sdr12 = <0xa>;
+	ti,itap-del-sel-sdr25 = <0x1>;
+};
+
+/* The board uses a Motorcomm YT8531C instead of the TI SK DP83867. */
+&cpsw3g_phy0 {
+	/delete-property/ ti,rx-internal-delay;
+	/delete-property/ ti,fifo-depth;
+	/delete-property/ ti,min-output-impedance;
+	motorcomm,auto-sleep-disabled;
+};
+
+&cpsw3g {
+	status = "okay";
+};
+
+&cpsw_port2 {
+	status = "disabled";
+};
+
+&usbss0 {
+	status = "disabled";
+};
+
+&usbss1 {
+	status = "disabled";
+};
+
+&gpu {
+	status = "disabled";
+};
+
+&pruss {
+	status = "disabled";
+};
+
+&ecap0 {
+	status = "disabled";
+};
+
+&ecap2 {
+	status = "disabled";
+};
+
+&epwm1 {
+	status = "disabled";
+};
+
+&mcu_m4fss {
+	status = "disabled";
+};
+
+&wkup_r5fss0 {
+	status = "disabled";
+};
+
+&wkup_r5fss0_core0 {
+	status = "disabled";
+};
+
+&main_rti1 {
+	status = "disabled";
+};
+
+&main_rti2 {
+	status = "disabled";
+};
+
+&main_rti3 {
+	status = "disabled";
+};
+
+&main_rti15 {
+	status = "disabled";
+};

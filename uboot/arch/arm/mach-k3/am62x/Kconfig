@@ -1,0 +1,120 @@
+# SPDX-License-Identifier: GPL-2.0+
+#
+# Copyright (C) 2023 Texas Instruments Incorporated - https://www.ti.com/
+#	Andrew Davis <afd@ti.com>
+
+if SOC_K3_AM625
+
+config MMCSD_MODE_FORCE_RAW
+	bool "Force MMC/SD raw boot mode"
+	depends on SPL_SYS_MMCSD_RAW_MODE
+	help
+	  Force the SPL MMC loader to use raw mode for MMC/SD boot,
+	  regardless of the ROM boot-mode FS/RAW setting. The raw sector
+	  location is configured by SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR.
+
+config SPL_FW_BOOT_SELECTOR
+	bool "Select AM62x RAW bootloader slot from fw metadata"
+	depends on SPL_MMC && SPL_SYS_MMCSD_RAW_MODE
+	depends on SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
+	select SPL_CRC32
+	help
+	  Read redundant fw metadata from the boot MMC device before loading
+	  the next boot stage. The selected deployment chooses the A or B RAW
+	  sector configured below.
+
+config SPL_FW_BOOT_SELECTOR_COMMIT
+	bool "Commit fw boot selection in this SPL stage"
+	depends on SPL_FW_BOOT_SELECTOR
+	select SPL_MMC_WRITE
+	help
+	  Make this SPL stage the owner of the boot-attempt state transition.
+	  Enable this only for the first mutable stage (tiboot3/R5 SPL). Later
+	  stages must only read the selection already committed by that stage.
+
+config SPL_FW_METADATA0_OFFSET
+	hex "fw metadata copy 0 byte offset"
+	depends on SPL_FW_BOOT_SELECTOR
+	default 0x500000
+
+config SPL_FW_METADATA1_OFFSET
+	hex "fw metadata copy 1 byte offset"
+	depends on SPL_FW_BOOT_SELECTOR
+	default 0x510000
+
+config SPL_FW_RAW_SECTOR_B
+	hex "MMC RAW sector for bootloader slot B"
+	depends on SPL_FW_BOOT_SELECTOR
+	help
+	  Sector containing the B copy of the next stage. Slot A uses
+	  SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR.
+
+choice
+	prompt "K3 AM62x based boards"
+	optional
+
+config TARGET_AM625_A53_EVM
+	bool "TI K3 based AM625 EVM running on A53"
+	select ARM64
+	select BINMAN
+	select OF_SYSTEM_SETUP
+	imply TI_COMMON_CMD_OPTIONS
+	imply TI_I2C_BOARD_DETECT
+
+config TARGET_AM625_R5_EVM
+	bool "TI K3 based AM625 EVM running on R5"
+	select CPU_V7R
+	select SYS_THUMB_BUILD
+	select K3_LOAD_SYSFW
+	select RAM
+	select SPL_RAM
+	select K3_DDRSS
+	select BINMAN
+	imply SYS_K3_SPL_ATF
+	imply TI_I2C_BOARD_DETECT
+
+config TARGET_PHYCORE_AM62X_A53
+	bool "PHYTEC phyCORE-AM62x running on A53"
+	select ARM64
+	select BINMAN
+	select OF_SYSTEM_SETUP
+	imply OF_UPSTREAM
+
+config TARGET_PHYCORE_AM62X_R5
+	bool "PHYTEC phyCORE-AM62x running on R5"
+	select CPU_V7R
+	select SYS_THUMB_BUILD
+	select K3_LOAD_SYSFW
+	select RAM
+	select SPL_RAM
+	select K3_DDRSS
+	select BINMAN
+	select PHYTEC_K3_DDR_PATCH
+	imply SYS_K3_SPL_ATF
+
+config TARGET_VERDIN_AM62_A53
+	bool "Toradex Verdin AM62 running on A53"
+	select ARM64
+	select BINMAN
+	select OF_SYSTEM_SETUP
+	imply OF_UPSTREAM
+
+config TARGET_VERDIN_AM62_R5
+	bool "Toradex Verdin AM62 running on R5"
+	select CPU_V7R
+	select SYS_THUMB_BUILD
+	select K3_LOAD_SYSFW
+	select RAM
+	select SPL_RAM
+	select K3_DDRSS
+	select BINMAN
+	imply SYS_K3_SPL_ATF
+
+endchoice
+
+source "board/beagle/beagleplay/Kconfig"
+source "board/phytec/phycore_am62x/Kconfig"
+source "board/ti/am62x/Kconfig"
+source "board/toradex/verdin-am62/Kconfig"
+
+endif
