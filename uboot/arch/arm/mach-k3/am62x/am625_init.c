@@ -68,6 +68,18 @@ static void store_boot_info_from_rom(void)
 	       sizeof(struct rom_extended_boot_data));
 }
 
+#if defined(CONFIG_EMS_BASE)
+u32 ems_get_bootpart(void)
+{
+	u32 bootpart = *(u32 *)(TI_AM62X_MMC_BOOT_PART_INDEX);
+
+    printf("ems bootpart = %d\n", bootpart);
+
+	return bootpart;
+}
+#endif
+
+
 static void ctrl_mmr_unlock(void)
 {
 	/* Unlock all WKUP_CTRL_MMR0 module registers */
@@ -266,6 +278,10 @@ u32 spl_mmc_boot_mode(struct mmc *mmc, const u32 boot_device)
 				MAIN_DEVSTAT_PRIMARY_BOOTMODE_SHIFT;
 	u32 bootmode_cfg = (devstat & MAIN_DEVSTAT_PRIMARY_BOOTMODE_CFG_MASK) >>
 			    MAIN_DEVSTAT_PRIMARY_BOOTMODE_CFG_SHIFT;
+
+#if defined(CONFIG_EMS_BASE)
+    return MMCSD_MODE_RAW;
+#endif
 
 	if (bootindex != K3_PRIMARY_BOOTMODE) {
 		pr_alert("Fallback to backup bootmode MMCSD_MODE_FS\n");
