@@ -1059,6 +1059,8 @@ UBOOTINCLUDE    := \
 	$(if $(CONFIG_NET_LWIP), -I$(srctree)/lib/lwip/lwip/src/include \
 		-I$(srctree)/lib/lwip/u-boot)
 
+UBOOTINCLUDE += -Iemsbase/board
+UBOOTINCLUDE += -Iemsbase/board/am62x/include
 UBOOTINCLUDE += -Iemsbase/include
 
 NOSTDINC_FLAGS += -nostdinc -isystem $(shell $(CC) -print-file-name=include)

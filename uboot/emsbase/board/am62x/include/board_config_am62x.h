@@ -6,7 +6,6 @@
 
 
 #include <env.h>
-#include <common.h>
 #include <board_config.h>
 
 

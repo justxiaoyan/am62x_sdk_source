@@ -37,6 +37,19 @@
 *.dtbo
 *.syms
 *.S
+*.ti-secure
+*.ti-board-config
+*.bin_*
+*.ti-secure-rom
+*.efi-capsule
+*.tmpl1
+*.tmpl2
+*.fit
+*.itb
+*.img
+*.img_unsigned
+*.pem
+*.blob
 
 
 # 忽略构建工具生成的目录
@@ -49,8 +62,11 @@ config/
 asymmetric_keys/
 output/
 iperf-3.18/
+spl/
+binman-fake/
 
 #忽略一些文件
+keep-syms-lto.c
 .binman_stamp
 obc_lvgl
 u-boot
@@ -101,6 +117,5 @@ LiteMonitor
 upgrade
 pack
 unpack_demo
-
 
 obc_sdk/
