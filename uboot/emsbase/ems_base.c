@@ -2,6 +2,7 @@
 
 #include <stdarg.h>
 #include <command.h>
+#include <common.h>
 
 #include <console.h>
 #include <fat.h>
@@ -11,7 +12,8 @@
 #include <net.h>
 #include <image.h>
 #include <init.h>
-
+#include <linux/ctype.h>
+#include <board_config.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -20,7 +22,11 @@ int do_emsboot(void)
 {
     int iRet = 0;
 
-    printf("ems board init\n");
+    iRet = obc_board_init();
+    if (iRet)
+    {
+        printf("obc board init error\n");
+    }
 
     return iRet;
 }
