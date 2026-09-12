@@ -105,6 +105,11 @@ parser.tab.h
 bmp_logo.h
 bmp_logo_data.h
 *.tab.h
+.tmp_vmlinux.nm-sort
+config_data.gz
+vmlinux.symvers
+vmlinux.unstripped
+
 
 tools-priority
 tools-mem
