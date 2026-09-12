@@ -68,15 +68,29 @@ static void store_boot_info_from_rom(void)
 	       sizeof(struct rom_extended_boot_data));
 }
 
-#if defined(CONFIG_EMS_BASE)
-u32 ems_get_bootpart(void)
+#if defined(CONFIG_EMS_BASE) || defined(CONFIG_OBC_BASE)
+static u32 get_raw_mmc_bootpart(void)
 {
 	u32 bootpart = *(u32 *)(TI_AM62X_MMC_BOOT_PART_INDEX);
 
-    printf("ems bootpart = %d\n", bootpart);
+	printf("bootpart = %d\n", bootpart);
 
 	return bootpart;
 }
+
+#if defined(CONFIG_EMS_BASE)
+u32 ems_get_bootpart(void)
+{
+	return get_raw_mmc_bootpart();
+}
+#endif
+
+#if defined(CONFIG_OBC_BASE)
+u32 obc_get_bootpart(void)
+{
+	return get_raw_mmc_bootpart();
+}
+#endif
 #endif
 
 
@@ -192,18 +206,33 @@ void board_init_f(ulong dummy)
 	if (!ret)
 		pinctrl_select_state(dev, "default");
 
-	preloader_console_init();
+	/*
+	 * Bring up the configured K3 early console before SYSFW and clock
+	 * initialization. The ALIENTEK board routes its external debug UART to
+	 * serial2 (MAIN_UART0), so its pinctrl must be selected explicitly here.
+	 * The regular console is initialized after the clock driver below so the
+	 * SPL banner is emitted with the final UART clock and baud divisor.
+	 */
+#if IS_ENABLED(CONFIG_K3_EARLY_CONS)
+	{
+		ret = uclass_find_device_by_seq(UCLASS_SERIAL,
+						CONFIG_K3_EARLY_CONS_IDX, &dev);
+		if (!ret)
+			pinctrl_select_state(dev, "default");
+
+		ret = early_console_init();
+		if (ret)
+			panic("early_console_init() failed: %d\n", ret);
+
+		puts("R5 SPL: early console initialized\n");
+	}
+#else
+	{
+		preloader_console_init();
+	}
+#endif
 
 	do_board_detect();
-
-	/*
-	 * Allow establishing an early console as required for example when
-	 * doing a UART-based boot. Note that this console may not "survive"
-	 * through a SYSFW PM-init step and will need a re-init in some way
-	 * due to changing module clock frequencies.
-	 */
-	if (IS_ENABLED(CONFIG_K3_EARLY_CONS))
-		early_console_init();
 
 	/*
 	 * Configure and start up system controller firmware. Provide
@@ -238,6 +267,13 @@ void board_init_f(ulong dummy)
 		if (ret)
 			printf("Failed to initialize clk-k3!\n");
 	}
+
+#if IS_ENABLED(CONFIG_K3_EARLY_CONS)
+	{
+		preloader_console_init();
+		puts("R5 SPL: main console initialized after SYSFW clocks\n");
+	}
+#endif
 
 	/* Output System Firmware version info */
 	k3_sysfw_print_ver();
@@ -279,8 +315,8 @@ u32 spl_mmc_boot_mode(struct mmc *mmc, const u32 boot_device)
 	u32 bootmode_cfg = (devstat & MAIN_DEVSTAT_PRIMARY_BOOTMODE_CFG_MASK) >>
 			    MAIN_DEVSTAT_PRIMARY_BOOTMODE_CFG_SHIFT;
 
-#if defined(CONFIG_EMS_BASE)
-    return MMCSD_MODE_RAW;
+#if defined(CONFIG_EMS_BASE) || defined(CONFIG_OBC_BASE)
+	return MMCSD_MODE_RAW;
 #endif
 
 	if (bootindex != K3_PRIMARY_BOOTMODE) {
