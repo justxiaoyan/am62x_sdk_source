@@ -593,8 +593,8 @@ u32 spl_spi_boot_cs(void);
  */
 u32 spl_mmc_boot_mode(struct mmc *mmc, const u32 boot_device);
 
-#if defined(CONFIG_EMS_BASE)
-u32 ems_get_bootpart(void);
+#if defined(CONFIG_OBC_BASE)
+u32 obc_get_bootpart(void);
 #endif
 
 /**
@@ -981,15 +981,15 @@ int spl_mmc_load(struct spl_image_info *spl_image,
 		 int raw_part,
 		 unsigned long raw_sect);
 
-#if defined(CONFIG_EMS_BASE)
+#if defined(CONFIG_OBC_BASE)
 /**
- * ems_spl_mmc_load_verify() - Load an image file from MMC/SD with EMS signature verification
+ * obc_spl_mmc_load_verify() - Load an image file from MMC/SD with EMS signature verification
  *
  * This function mimics spl_mmc_load but performs additional verification by reading
  * and validating an EMS signature header before loading the actual image.
  *
  * The function reads the first 512-byte sector at the specified location and verifies
- * that it contains a valid EMS magic signature ("EMSFS"). If verification passes,
+ * that it contains a valid OBC magic signature ("OBCFS"). If verification passes,
  * it proceeds to load the full image using the standard spl_mmc_load flow.
  *
  * @param spl_image	Image data filled in by loading process
@@ -1001,7 +1001,7 @@ int spl_mmc_load(struct spl_image_info *spl_image,
  *
  * Return: 0 on success, -EINVAL if magic verification fails, otherwise error code
  */
-int ems_spl_mmc_load_verify(struct spl_image_info *spl_image,
+int obc_spl_mmc_load_verify(struct spl_image_info *spl_image,
 				  struct spl_boot_device *bootdev,
 				  const char *filename,
 				  int raw_part,
@@ -1009,11 +1009,11 @@ int ems_spl_mmc_load_verify(struct spl_image_info *spl_image,
 
 
 
-/* EMS SPL FDT 初始化函数声明 */
-int ems_spl_fdt_init(struct spl_boot_device *bootdev);
+/* OBC SPL FDT 初始化函数声明 */
+int obc_spl_fdt_init(struct spl_boot_device *bootdev);
 
 /**
- * ems_spl_get_partition_info - 根据分区名获取分区信息
+ * obc_spl_get_partition_info - 根据分区名获取分区信息
  *
  * @part_name:  分区名称（如 "teeos0", "teeos1", "uboot0" 等）
  * @start_sect: 输出参数，返回起始扇区号（512字节/扇区）
@@ -1024,25 +1024,25 @@ int ems_spl_fdt_init(struct spl_boot_device *bootdev);
  *   -ENOENT - 未找到分区
  *   -EINVAL - 参数错误或共享内存未初始化
  */
-int ems_spl_get_partition_info(const char *part_name, unsigned long *start_sect,
+int obc_spl_get_partition_info(const char *part_name, unsigned long *start_sect,
                                 unsigned int *size_bytes);
 
 /**
- * ems_spl_load_image_with_retry - 通用的镜像加载函数，支持失败重试
+ * obc_spl_load_image_with_retry - 通用的镜像加载函数，支持失败重试
  *
  * @spl_image:   SPL 镜像信息结构体
  * @bootdev:     启动设备信息
  * @part_prefix: 分区名前缀（如 "teeos" 或 "uboot"）
  *
  * 功能：
- *   从设备树分区表动态获取分区信息，依次尝试加载 part0 -> part1 -> part2
+ *   从设备树分区表动态获取分区信息，依次尝试加载 part0 -> part1
  *   如果某个分区加载失败，自动尝试下一个备份分区
  *
  * 返回值：
  *   0       - 成功加载
- *   -ENOENT - 所有分区均加载失败
+ *   -ENOENT - 两个分区均加载失败
  */
-int ems_spl_load_image_with_retry(struct spl_image_info *spl_image,
+int obc_spl_load_image_with_retry(struct spl_image_info *spl_image,
                                     struct spl_boot_device *bootdev,
                                     const char *part_prefix);
 #endif

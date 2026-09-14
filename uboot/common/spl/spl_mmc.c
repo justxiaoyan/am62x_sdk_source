@@ -20,7 +20,7 @@
 #include <fdt_support.h>
 #include <linux/libfdt.h>
 #include <board_config.h>
-#include <ems_pack.h>
+#include <obc_pack.h>
 #include <board_config_am62x.h>
 
 
@@ -482,20 +482,20 @@ SPL_LOAD_IMAGE_METHOD("MMC1", 0, BOOT_DEVICE_MMC1, spl_mmc_load_image);
 SPL_LOAD_IMAGE_METHOD("MMC2", 0, BOOT_DEVICE_MMC2, spl_mmc_load_image);
 SPL_LOAD_IMAGE_METHOD("MMC2_2", 0, BOOT_DEVICE_MMC2_2, spl_mmc_load_image);
 
-#if defined(CONFIG_EMS_BASE)
+#if defined(CONFIG_OBC_BASE)
 
 /* ============================================================================
- * EMS Custom MMC Load with Signature Verification
+ * OBC Custom MMC Load with Signature Verification
  * ============================================================================ */
 
 /**
- * ems_spl_mmc_load_with_verify - 从 MMC 读取带 EMS 签名验证的镜像
+ * obc_spl_mmc_load_verify - 从 MMC 读取带 OBC 签名验证的镜像
  *
  * 数据布局（存储设备上）：
- *   [EMS_PACK_HEAD_T (512B)] + [legacy_img_hdr (64B)] + [image数据]
+ *   [OBC_PACK_HEAD_T (512B)] + [legacy_img_hdr (64B)] + [image数据]
  *
  * 内存布局（加载后）：
- *   CONFIG_TEXT_BASE - 576:  [EMS_PACK_HEAD_T (512B)]
+ *   CONFIG_TEXT_BASE - 576:  [OBC_PACK_HEAD_T (512B)]
  *   CONFIG_TEXT_BASE - 64:   [legacy_img_hdr (64B)]
  *   CONFIG_TEXT_BASE:        [image数据] ← 关键！镜像入口点
  *
@@ -510,7 +510,7 @@ SPL_LOAD_IMAGE_METHOD("MMC2_2", 0, BOOT_DEVICE_MMC2_2, spl_mmc_load_image);
  *   -EINVAL - 魔数验证失败
  *   其他    - MMC 读取错误
  */
-int ems_spl_mmc_load_verify(struct spl_image_info *spl_image,
+int obc_spl_mmc_load_verify(struct spl_image_info *spl_image,
 				  struct spl_boot_device *bootdev,
 				  const char *filename,
 				  int raw_part,
@@ -522,10 +522,10 @@ int ems_spl_mmc_load_verify(struct spl_image_info *spl_image,
 	ulong read_size;
 	u32 boot_mode;
     u16 calculated_crc;
-	EMS_PACK_HEAD_T *ems_header;
+	OBC_PACK_HEAD_T *obc_header;
 	void *load_buffer;
-	/* 计算总头部大小：EMS头(512) + legacy头(64) = 576字节 */
-	const ulong TOTAL_HEADER_SIZE = EMS_HEADER_SIZE + sizeof(struct legacy_img_hdr);
+	/* 计算总头部大小：OBC头(512) + legacy头(64) = 576字节 */
+	const ulong TOTAL_HEADER_SIZE = OBC_HEADER_SIZE + sizeof(struct legacy_img_hdr);
     u16 sect_count = 0; 
 
 	/* 1#: 初始化 MMC 设备 */
@@ -533,14 +533,14 @@ int ems_spl_mmc_load_verify(struct spl_image_info *spl_image,
 	if (!mmc || spl_mmc_get_mmc_devnum(mmc) != mmc_dev) {
 		ret = spl_mmc_find_device(&mmc, mmc_dev);
 		if (ret) {
-			printf("EMS SPL: Failed to find mmc device: %d\n", ret);
+			printf("OBC SPL: Failed to find mmc device: %d\n", ret);
 			return ret;
 		}
 
 		ret = mmc_init(mmc);
 		if (ret) {
 			mmc = NULL;
-			printf("EMS SPL: mmc init failed: %d\n", ret);
+			printf("OBC SPL: mmc init failed: %d\n", ret);
 			return ret;
 		}
 	}
@@ -555,7 +555,7 @@ int ems_spl_mmc_load_verify(struct spl_image_info *spl_image,
 			ret = blk_dselect_hwpart(mmc_get_blk_desc(mmc), part);
 
 		if (ret) {
-			printf("EMS SPL: Partition switch failed: %d\n", ret);
+			printf("OBC SPL: Partition switch failed: %d\n", ret);
 			return ret;
 		}
 	}
@@ -563,12 +563,12 @@ int ems_spl_mmc_load_verify(struct spl_image_info *spl_image,
 	/* 3#: 获取块设备描述符 */
 	bd = mmc_get_blk_desc(mmc);
 	if (!bd) {
-		printf("EMS SPL: Failed to get block descriptor\n");
+		printf("OBC SPL: Failed to get block descriptor\n");
 		return -ENODEV;
 	}
 
 	/* 4#: 获取加载缓冲区
-	 * 关键：offset = -(EMS_HEADER_SIZE + sizeof(legacy_img_hdr)) = -576
+	 * 关键：offset = -(OBC_HEADER_SIZE + sizeof(legacy_img_hdr)) = -576
 	 * 返回地址 = CONFIG_TEXT_BASE - 576
 	 * 这样可以确保 image 数据正好从 CONFIG_TEXT_BASE 开始
 	 */
@@ -577,66 +577,66 @@ int ems_spl_mmc_load_verify(struct spl_image_info *spl_image,
     /* 5#: 读取512字节头部（1个扇区） */
     read_size = blk_dread(bd, raw_sect, 1, load_buffer);
     if (read_size != 1) {
-        printf("EMS SPL: Failed to read header, read_size=%ld\n", read_size);
+        printf("OBC SPL: Failed to read header, read_size=%ld\n", read_size);
         return -EIO;
     }
 
 	/* 6#: 验证 EMS 头部（位于缓冲区开头） */
-	ems_header = (EMS_PACK_HEAD_T *)load_buffer;
+	obc_header = (OBC_PACK_HEAD_T *)load_buffer;
 
-	if (memcmp(ems_header->magic, EMS_MAGIC, EMS_MAGIC_LEN) != 0) {
-		printf("EMS SPL: error magic: \"EMSFS\"\n");
+	if (memcmp(obc_header->magic, OBC_MAGIC, OBC_MAGIC_LEN) != 0) {
+		printf("OBC SPL: error magic: \"OBCFS\"\n");
 		return -EINVAL;
 	}
 
     /* 7#: 读取剩余扇区 */
-    sect_count = (ems_header->file_size / (1 << bd->log2blksz)) + 1;
-    read_size = blk_dread(bd, raw_sect + 1, sect_count, load_buffer + EMS_HEADER_SIZE);
+    sect_count = (obc_header->file_size / (1 << bd->log2blksz)) + 1;
+    read_size = blk_dread(bd, raw_sect + 1, sect_count, load_buffer + OBC_HEADER_SIZE);
     if (read_size != sect_count) {
-        printf("EMS SPL: Failed to read header, read_size=%ld\n", read_size);
+        printf("OBC SPL: Failed to read header, read_size=%ld\n", read_size);
         return -EIO;
     }
 
     /* 5. 验证CRC16 */
-    calculated_crc = crc16(0xFFFF, load_buffer + EMS_HEADER_SIZE, ems_header->file_size);
-    if (calculated_crc != ems_header->crc16) {
-        printf("EMS SPL: CRC16 mismatch! stored=0x%04X, calc=0x%04X\n",
-               ems_header->crc16, calculated_crc);
+    calculated_crc = crc16(0xFFFF, load_buffer + OBC_HEADER_SIZE, obc_header->file_size);
+    if (calculated_crc != obc_header->crc16) {
+        printf("OBC SPL: CRC16 mismatch! stored=0x%04X, calc=0x%04X\n",
+               obc_header->crc16, calculated_crc);
         return -EILSEQ;
     }
 
-    printf("EMS SPL: CRC16 PASS! stored=0x%04X, calc=0x%04X\n",
-               ems_header->crc16, calculated_crc);
+    printf("OBC SPL: CRC16 PASS! stored=0x%04X, calc=0x%04X\n",
+               obc_header->crc16, calculated_crc);
 
 	return 0;
 }
 
 /**
- * ems_parse_partitions - 解析设备树中的 emspart 分区信息
+ * obc_parse_partitions - 解析设备树中的 obcpart 分区信息
  *
  * @fdt_addr:      设备树地址
- * @emspart_name:  要查找的 emspart 属性值（如 "ems-mmc" 或 "ems-flash"）
+ * @obcpart_name:  要查找的 obcpart 属性值（如 "obc-mmc" 或 "obc-flash"）
  * @parts_array:   目标分区数组
  * @max_parts:     最大分区数量
  *
  * 返回值：找到的分区数量
  */
-static int ems_parse_partitions(void *fdt_addr, const char *emspart_name,
+static int obc_parse_partitions(void *fdt_addr, const char *obcpart_name,
                                 BOARD_ABILITY_BLK_PARTS_T *parts_array, int max_parts)
 {
 	int node_offset, partitions_node, subnode_offset;
-	const char *label, *emspart, *flag;
+	const char *label, *obcpart, *flag;
 	const fdt32_t *reg;
 	int label_len, reg_len, flag_len, len;
 	int part_count = 0;
 
-	/* 从根节点开始查找指定的 emspart 节点 */
+	/* 从根节点开始查找指定的 obcpart 节点 */
 	for (node_offset = fdt_first_subnode(fdt_addr, 0);
 	     node_offset >= 0;
 	     node_offset = fdt_next_subnode(fdt_addr, node_offset)) {
 
-		emspart = fdt_getprop(fdt_addr, node_offset, "emspart", &len);
-		if (emspart && strstr(emspart, emspart_name)) {
+		obcpart = fdt_getprop(fdt_addr, node_offset, "obcpart", &len);
+		if (obcpart && strstr(obcpart, obcpart_name)) {
 			/* 找到目标节点，查找 partitions 子节点 */
 			partitions_node = fdt_subnode_offset(fdt_addr, node_offset, "partitions");
 			if (partitions_node >= 0) {
@@ -679,7 +679,7 @@ static int ems_parse_partitions(void *fdt_addr, const char *emspart_name,
 }
 
 /**
- * ems_spl_get_partition_info - 根据分区名获取分区信息
+ * obc_spl_get_partition_info - 根据分区名获取分区信息
  *
  * @part_name:  分区名称（如 "teeos0", "teeos1", "uboot0" 等）
  * @start_sect: 输出参数，返回起始扇区号（512字节/扇区）
@@ -690,7 +690,7 @@ static int ems_parse_partitions(void *fdt_addr, const char *emspart_name,
  *   -ENOENT - 未找到分区
  *   -EINVAL - 参数错误或共享内存未初始化
  */
-int ems_spl_get_partition_info(const char *part_name, unsigned long *start_sect,
+int obc_spl_get_partition_info(const char *part_name, unsigned long *start_sect,
                                 unsigned int *size_bytes)
 {
 	BOARD_ABILITY_TABLE_T *shared_ability;
@@ -698,16 +698,16 @@ int ems_spl_get_partition_info(const char *part_name, unsigned long *start_sect,
 
 	if (!part_name || !start_sect || !size_bytes)
     {
-		printf("EMS SPL: Invalid parameters for partition lookup\n");
+		printf("OBC SPL: Invalid parameters for partition lookup\n");
 		return -EINVAL;
 	}
 
 	/* 从共享内存读取分区表 */
-	shared_ability = (BOARD_ABILITY_TABLE_T *)CONFIG_EMS_SHMEM_ADDR;
+	shared_ability = (BOARD_ABILITY_TABLE_T *)CONFIG_OBC_SHMEM_ADDR;
 
 	/* 验证共享内存中的魔数 */
-	if (memcmp(shared_ability->magic, EMS_MAGIC, EMS_MAGIC_LEN) != 0) {
-		printf("EMS SPL: Shared memory not initialized (invalid magic)\n");
+	if (memcmp(shared_ability->magic, OBC_MAGIC, OBC_MAGIC_LEN) != 0) {
+		printf("OBC SPL: Shared memory not initialized (invalid magic)\n");
 		return -EINVAL;
 	}
 
@@ -722,26 +722,26 @@ int ems_spl_get_partition_info(const char *part_name, unsigned long *start_sect,
 		}
 	}
 
-	printf("EMS SPL: Partition '%s' not found in partition table\n", part_name);
+	printf("OBC SPL: Partition '%s' not found in partition table\n", part_name);
 	return -ENOENT;
 }
 
 /**
- * ems_spl_load_image_with_retry - 通用的镜像加载函数，支持失败重试
+ * obc_spl_load_image_with_retry - 通用的镜像加载函数，支持失败重试
  *
  * @spl_image:  SPL 镜像信息结构体
  * @bootdev:    启动设备信息
  * @part_prefix: 分区名前缀（如 "teeos" 或 "uboot"）
  *
  * 功能：
- *   从设备树分区表动态获取分区信息，依次尝试加载 part0 -> part1 -> part2
+ *   从设备树分区表动态获取分区信息，依次尝试加载 part0 -> part1
  *   如果某个分区加载失败，自动尝试下一个备份分区
  *
  * 返回值：
  *   0       - 成功加载
- *   -ENOENT - 所有分区均加载失败
+ *   -ENOENT - 两个分区均加载失败
  */
-int ems_spl_load_image_with_retry(struct spl_image_info *spl_image,
+int obc_spl_load_image_with_retry(struct spl_image_info *spl_image,
                                     struct spl_boot_device *bootdev,
                                     const char *part_prefix)
 {
@@ -749,26 +749,26 @@ int ems_spl_load_image_with_retry(struct spl_image_info *spl_image,
 	int i;
 	int ret;
 
-	/* 默认从分区0开始尝试，失败后依次尝试1和2 */
-	for (i = 0; i < 3; i++) {
+	/* 默认从分区0开始尝试，失败后仅尝试分区1 */
+	for (i = 0; i < 2; i++) {
 		unsigned long start_sect = 0;
 		unsigned int size_bytes = 0;
 
-		/* 构造分区名：teeos0/teeos1/teeos2 或 uboot0/uboot1/uboot2 */
+		/* 构造分区名：teeos0/teeos1 或 uboot0/uboot1 */
 		snprintf(part_name, sizeof(part_name), "%s%d", part_prefix, i);
 
 		/* 从设备树分区表获取分区信息 */
-		ret = ems_spl_get_partition_info(part_name, &start_sect, &size_bytes);
+		ret = obc_spl_get_partition_info(part_name, &start_sect, &size_bytes);
 		if (ret) {
-			printf("EMS SPL: Failed to get partition info for %s, ret=%d\n",
+			printf("OBC SPL: Failed to get partition info for %s, ret=%d\n",
 			       part_name, ret);
 			continue;
 		}
 
 		/* 校验分区 */
-		ret = ems_spl_mmc_load_verify(spl_image, bootdev, NULL, 0, start_sect);
+		ret = obc_spl_mmc_load_verify(spl_image, bootdev, NULL, 0, start_sect);
 		if (ret) {
-			printf("EMS SPL: %s verify failed, ret=%d, trying next partition\n",
+			printf("OBC SPL: %s verify failed, ret=%d, trying next partition\n",
 			       part_name, ret);
 			continue;
 		}
@@ -776,7 +776,7 @@ int ems_spl_load_image_with_retry(struct spl_image_info *spl_image,
 		/* 加载镜像 */
 		ret = spl_mmc_load(spl_image, bootdev, NULL, 0, start_sect + 1);
 		if (ret) {
-			printf("EMS SPL: %s load failed, ret=%d, trying next partition\n",
+			printf("OBC SPL: %s load failed, ret=%d, trying next partition\n",
 			       part_name, ret);
 			continue;
 		}
@@ -784,16 +784,16 @@ int ems_spl_load_image_with_retry(struct spl_image_info *spl_image,
 		return 0;
 	}
 
-	printf("EMS SPL: Failed to load %s from all partitions (0, 1, 2)\n", part_prefix);
+	printf("OBC SPL: Failed to load %s from all partitions (0, 1)\n", part_prefix);
 	return -ENOENT;
 }
 
 /**
- * ems_spl_fdt_init - SPL阶段设备树预加载和分区信息解析
+ * obc_spl_fdt_init - SPL阶段设备树预加载和分区信息解析
  *
  * 功能：
  *   1. 从默认地址加载设备树到内存
- *   2. 解析设备树中的分区信息（ems-mmc 和 ems-flash）
+ *   2. 解析设备树中的分区信息（obc-mmc 和 obc-flash）
  *   3. 将解析结果填充到共享内存 0x98000000
  *   4. 打印分区信息
  *
@@ -801,7 +801,7 @@ int ems_spl_load_image_with_retry(struct spl_image_info *spl_image,
  *   0       - 成功
  *   非0     - 失败（不影响启动流程）
  */
-int ems_spl_fdt_init(struct spl_boot_device *bootdev)
+int obc_spl_fdt_init(struct spl_boot_device *bootdev)
 {
 	int ret;
 	struct blk_desc *bd;
@@ -809,7 +809,7 @@ int ems_spl_fdt_init(struct spl_boot_device *bootdev)
 	ulong read_size;
 	ulong fdt_sector;
 	void *fdt_addr = (void *)CONFIG_AM62X_HEX_FDT_ADDR;
-	BOARD_ABILITY_TABLE_T *shared_ability = (BOARD_ABILITY_TABLE_T *)CONFIG_EMS_SHMEM_ADDR;
+	BOARD_ABILITY_TABLE_T *shared_ability = (BOARD_ABILITY_TABLE_T *)CONFIG_OBC_SHMEM_ADDR;
 	BOARD_ABILITY_TABLE_T local_ability;
 	int mmc_part_count = 0, flash_part_count = 0;
 	int fdt_partition_idx;
@@ -818,8 +818,7 @@ int ems_spl_fdt_init(struct spl_boot_device *bootdev)
 	/* FDT分区地址数组 */
 	const ulong fdt_base_addrs[] = {
 		CONFIG_AM62X_FDT0_DEVADDR,  /* fdt0: 0x00900000 */
-		CONFIG_AM62X_FDT1_DEVADDR,  /* fdt1: 0x00980000 */
-		CONFIG_AM62X_FDT2_DEVADDR   /* fdt2: 0x00a00000 */
+		CONFIG_AM62X_FDT1_DEVADDR   /* fdt1: 0x00980000 */
 	};
 	const int fdt_partition_count = sizeof(fdt_base_addrs) / sizeof(fdt_base_addrs[0]);
 
@@ -829,14 +828,14 @@ int ems_spl_fdt_init(struct spl_boot_device *bootdev)
 	if (!mmc || spl_mmc_get_mmc_devnum(mmc) != mmc_dev) {
 		ret = spl_mmc_find_device(&mmc, mmc_dev);
 		if (ret) {
-			printf("EMS SPL: Failed to find mmc device: %d\n", ret);
+			printf("OBC SPL: Failed to find mmc device: %d\n", ret);
 			return ret;
 		}
 
 		ret = mmc_init(mmc);
 		if (ret) {
 			mmc = NULL;
-			printf("EMS SPL: mmc init failed: %d\n", ret);
+			printf("OBC SPL: mmc init failed: %d\n", ret);
 			return ret;
 		}
 	}
@@ -847,34 +846,34 @@ int ems_spl_fdt_init(struct spl_boot_device *bootdev)
 		return -1;
 	}
 
-	/* 依次尝试从 fdt0, fdt1, fdt2 加载设备树 */
+	/* 依次尝试从 fdt0, fdt1 加载设备树 */
 	for (fdt_partition_idx = 0; fdt_partition_idx < fdt_partition_count; fdt_partition_idx++)
     {
 		/* 1# 从当前FDT分区地址读取 EMS 打包头 (512字节) */
 		fdt_sector = fdt_base_addrs[fdt_partition_idx] / bd->blksz;
 
-		printf("SPL: Loading EMS header from sector 0x%lx to 0x%p\n", fdt_sector, fdt_addr);
+		printf("SPL: Loading OBC header from sector 0x%lx to 0x%p\n", fdt_sector, fdt_addr);
 
-		/* 读取第一个块（包含 EMS_PACK_HEAD_T） */
+		/* 读取第一个块（包含 OBC_PACK_HEAD_T） */
 		read_size = blk_dread(bd, fdt_sector, 1, fdt_addr);
 		if (read_size != 1) {
-			printf("SPL: Failed to read EMS header from fdt%d, read_size=%ld\n",
+			printf("SPL: Failed to read OBC header from fdt%d, read_size=%ld\n",
 			       fdt_partition_idx, read_size);
 			continue;  /* 尝试下一个分区 */
 		}
 
 		/* 2# 验证 EMS 打包头 */
-		EMS_PACK_HEAD_T *ems_header = (EMS_PACK_HEAD_T *)fdt_addr;
-		if (memcmp(ems_header->magic, EMS_MAGIC, EMS_MAGIC_LEN) != 0) {
-			printf("SPL: Invalid EMS magic in fdt%d, expected \"EMSFS\"\n",
+		OBC_PACK_HEAD_T *obc_header = (OBC_PACK_HEAD_T *)fdt_addr;
+		if (memcmp(obc_header->magic, OBC_MAGIC, OBC_MAGIC_LEN) != 0) {
+			printf("SPL: Invalid OBC magic in fdt%d, expected \"OBCFS\"\n",
 			       fdt_partition_idx);
 			continue;  /* 尝试下一个分区 */
 		}
 
 		/* 3# 读取剩余的设备树数据 */
-		ulong sect_count = (ems_header->file_size / bd->blksz) + 1;
+		ulong sect_count = (obc_header->file_size / bd->blksz) + 1;
 
-		read_size = blk_dread(bd, fdt_sector + 1, sect_count, fdt_addr + EMS_HEADER_SIZE);
+		read_size = blk_dread(bd, fdt_sector + 1, sect_count, fdt_addr + OBC_HEADER_SIZE);
 		if (read_size != sect_count) {
 			printf("SPL: Failed to read FDT data from fdt%d, read_size=%ld, expected=%ld\n",
 			       fdt_partition_idx, read_size, sect_count);
@@ -882,15 +881,15 @@ int ems_spl_fdt_init(struct spl_boot_device *bootdev)
 		}
 
 		/* 4# 验证 CRC16 */
-		u16 calculated_crc = crc16(0xFFFF, (u8 *)(fdt_addr + EMS_HEADER_SIZE), ems_header->file_size);
-		if (calculated_crc != ems_header->crc16) {
+		u16 calculated_crc = crc16(0xFFFF, (u8 *)(fdt_addr + OBC_HEADER_SIZE), obc_header->file_size);
+		if (calculated_crc != obc_header->crc16) {
 			printf("SPL: CRC16 mismatch in fdt%d! stored=0x%04X, calc=0x%04X\n",
-			       fdt_partition_idx, ems_header->crc16, calculated_crc);
+			       fdt_partition_idx, obc_header->crc16, calculated_crc);
 			continue;  /* 尝试下一个分区 */
 		}
 
-		/* 5# 设备树数据从 EMS_HEADER_SIZE 偏移开始 */
-		void *fdt_data = fdt_addr + EMS_HEADER_SIZE;
+		/* 5# 设备树数据从 OBC_HEADER_SIZE 偏移开始 */
+		void *fdt_data = fdt_addr + OBC_HEADER_SIZE;
 
 		/* 6# 检查设备树有效性 */
 		ret = fdt_check_header(fdt_data);
@@ -899,7 +898,7 @@ int ems_spl_fdt_init(struct spl_boot_device *bootdev)
 			continue;  /* 尝试下一个分区 */
 		}
 
-		/* 7# 更新 fdt_addr 指向实际的设备树数据 */
+		/* SPL 后续解析使用去掉 OBC 头部后的设备树数据。 */
 		fdt_addr = fdt_data;
 		load_success = 1;
 		break;  /* 成功加载，退出循环 */
@@ -907,7 +906,7 @@ int ems_spl_fdt_init(struct spl_boot_device *bootdev)
 
 	/* 检查是否成功加载了FDT */
 	if (!load_success) {
-		printf("SPL: Failed to load FDT from all partitions (fdt0, fdt1, fdt2)\n");
+		printf("SPL: Failed to load FDT from all partitions (fdt0, fdt1)\n");
 		return -1;
 	}
 
@@ -915,16 +914,16 @@ int ems_spl_fdt_init(struct spl_boot_device *bootdev)
 
 	/* 3# 初始化本地 BOARD_ABILITY_TABLE_T 结构 */
 	memset(&local_ability, 0, sizeof(BOARD_ABILITY_TABLE_T));
-	memcpy(local_ability.magic, EMS_MAGIC, EMS_MAGIC_LEN);
+	memcpy(local_ability.magic, OBC_MAGIC, OBC_MAGIC_LEN);
 
-	/* 4# 解析 ems-mmc 分区信息 */
-	mmc_part_count = ems_parse_partitions(fdt_addr, "ems-mmc",
+	/* 4# 解析 obc-mmc 分区信息 */
+	mmc_part_count = obc_parse_partitions(fdt_addr, "obc-mmc",
 	                                      local_ability.stBlk.stParts_mmc,
 	                                      MAX_PART_NUM);
 	local_ability.stBlk.iPartCount_mmc = mmc_part_count;
 
-	/* 5# 解析 ems-flash 分区信息 */
-	flash_part_count = ems_parse_partitions(fdt_addr, "ems-flash",
+	/* 5# 解析 obc-flash 分区信息 */
+	flash_part_count = obc_parse_partitions(fdt_addr, "obc-flash",
 	                                        local_ability.stBlk.stParts_flash,
 	                                        MAX_PART_NUM);
 	local_ability.stBlk.iPartCount_flash = flash_part_count;
@@ -932,7 +931,7 @@ int ems_spl_fdt_init(struct spl_boot_device *bootdev)
 #if 0
 	/* 6# 打印 MMC 分区信息 */
 	if (mmc_part_count > 0) {
-		printf("\nSPL: MMC partition table (ems-mmc):\n");
+		printf("\nSPL: MMC partition table (obc-mmc):\n");
 		printf("====================================================================================\n");
 		printf("%-10s\t%-20s\t%-20s\t%-20s\t%-10s\n",
 		       "number:", "partname:", "start:", "size:", "type");
@@ -950,7 +949,7 @@ int ems_spl_fdt_init(struct spl_boot_device *bootdev)
 
 	/* 7# 打印 Flash 分区信息 */
 	if (flash_part_count > 0) {
-		printf("\nSPL: Flash partition table (ems-flash):\n");
+		printf("\nSPL: Flash partition table (obc-flash):\n");
 		printf("====================================================================================\n");
 		printf("%-10s\t%-20s\t%-20s\t%-20s\t%-10s\n",
 		       "number:", "partname:", "start:", "size:", "type");
@@ -979,4 +978,3 @@ int ems_spl_fdt_init(struct spl_boot_device *bootdev)
 
 
 #endif
-

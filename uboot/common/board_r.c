@@ -67,7 +67,7 @@
 #include <asm-generic/gpio.h>
 #include <relocate.h>
 
-#include <ems_base.h>
+#include <obc_base.h>
 
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -784,7 +784,7 @@ static void initcall_run_r(void)
 #endif
 	INITCALL(initr_boot_led_on);
 
-    INITCALL(do_emsboot);
+    INITCALL(do_obcboot);
 	
 	INITCALL(run_main_loop);
 }

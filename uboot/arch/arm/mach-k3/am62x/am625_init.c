@@ -68,7 +68,7 @@ static void store_boot_info_from_rom(void)
 	       sizeof(struct rom_extended_boot_data));
 }
 
-#if defined(CONFIG_EMS_BASE) || defined(CONFIG_OBC_BASE)
+#if defined(CONFIG_OBC_BASE)
 static u32 get_raw_mmc_bootpart(void)
 {
 	u32 bootpart = *(u32 *)(TI_AM62X_MMC_BOOT_PART_INDEX);
@@ -78,19 +78,13 @@ static u32 get_raw_mmc_bootpart(void)
 	return bootpart;
 }
 
-#if defined(CONFIG_EMS_BASE)
-u32 ems_get_bootpart(void)
-{
-	return get_raw_mmc_bootpart();
-}
-#endif
-
 #if defined(CONFIG_OBC_BASE)
 u32 obc_get_bootpart(void)
 {
 	return get_raw_mmc_bootpart();
 }
 #endif
+
 #endif
 
 
@@ -315,7 +309,7 @@ u32 spl_mmc_boot_mode(struct mmc *mmc, const u32 boot_device)
 	u32 bootmode_cfg = (devstat & MAIN_DEVSTAT_PRIMARY_BOOTMODE_CFG_MASK) >>
 			    MAIN_DEVSTAT_PRIMARY_BOOTMODE_CFG_SHIFT;
 
-#if defined(CONFIG_EMS_BASE) || defined(CONFIG_OBC_BASE)
+#if defined(CONFIG_OBC_BASE)
 	return MMCSD_MODE_RAW;
 #endif
 

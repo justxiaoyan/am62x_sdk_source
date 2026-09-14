@@ -43,7 +43,7 @@
 #include <wdt.h>
 #include <video.h>
 
-#if defined(CONFIG_EMS_BASE)
+#if defined(CONFIG_OBC_BASE)
 #include <board_config.h>
 #endif
 
@@ -599,28 +599,29 @@ static int spl_load_image(struct spl_image_info *spl_image,
 	bootdev.boot_device = loader->boot_device;
 	bootdev.boot_device_name = NULL;
 
-#if defined(CONFIG_EMS_BASE)
-	u32 bootpart = ems_get_bootpart();
-#if defined(CONFIG_EMS_BASE_TIBOOT)
-    printf("ems base ti boot step, bootpart=%d\n", bootpart);
-    ems_spl_fdt_init(&bootdev);
+#if defined(CONFIG_OBC_BASE)
+	u32 bootpart = obc_get_bootpart();
+	(void)bootpart;
+#if defined(CONFIG_OBC_BASE_TIBOOT)
+    printf("obc base ti boot step, bootpart=%d\n", bootpart);
+    obc_spl_fdt_init(&bootdev);
 
 	/* tispl.bin (teeos) 加载，支持动态地址和失败重试
-	 * 默认从 teeos0 开始尝试，失败后依次尝试 teeos1 -> teeos2
+	 * 默认从 teeos0 开始尝试，失败后尝试 teeos1
 	 */
-	ret = ems_spl_load_image_with_retry(spl_image, &bootdev, "teeos");
-#endif //end CONFIG_EMS_BASE_TIBOOT
-#if defined(CONFIG_EMS_BASE_TIUBOOT)
+	ret = obc_spl_load_image_with_retry(spl_image, &bootdev, "teeos");
+#endif //end CONFIG_OBC_BASE_TIBOOT
+#if defined(CONFIG_OBC_BASE_TIUBOOT)
 
 	/* u-boot.img 加载，支持动态地址和失败重试
-	 * 默认从 uboot0 开始尝试，失败后依次尝试 uboot1 -> uboot2
+	 * 默认从 uboot0 开始尝试，失败后尝试 uboot1
 	 */
-	ret = ems_spl_load_image_with_retry(spl_image, &bootdev, "uboot");
-#endif // end CONFIG_EMS_BASE_TIUBOOT
+	ret = obc_spl_load_image_with_retry(spl_image, &bootdev, "uboot");
+#endif // end CONFIG_OBC_BASE_TIUBOOT
 #else
-    printf("ems base disable\n");
+    printf("obc base disable\n");
 	ret = loader->load_image(spl_image, &bootdev);
-#endif //end CONFIG_EMS_BASE
+#endif //end CONFIG_OBC_BASE
 
 #ifdef CONFIG_SPL_LEGACY_IMAGE_CRC_CHECK
 	if (!ret && spl_image->dcrc_length) {
