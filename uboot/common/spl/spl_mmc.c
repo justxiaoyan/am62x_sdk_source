@@ -362,6 +362,50 @@ static int spl_mmc_get_mmc_devnum(struct mmc *mmc)
 
 static struct mmc *mmc;
 
+static unsigned char obc_spl_slot = OBC_SLOT_A;
+
+static int obc_spl_slot_read(struct blk_desc *bd, unsigned char *slot)
+{
+	u8 block[512];
+	ulong sector;
+
+	if (!bd || !slot)
+		return -EINVAL;
+
+	sector = CONFIG_AM62X_SYSFLAG_DEVADDR / bd->blksz;
+	if (blk_dread(bd, sector, 1, block) != 1)
+		return -EIO;
+
+	*slot = block[0] == OBC_SLOT_B ? OBC_SLOT_B : OBC_SLOT_A;
+	return 0;
+}
+
+static int obc_spl_slot_write(struct blk_desc *bd, unsigned char slot)
+{
+	u8 block[512];
+	ulong sector;
+
+	if (!bd || slot > OBC_SLOT_B)
+		return -EINVAL;
+
+	sector = CONFIG_AM62X_SYSFLAG_DEVADDR / bd->blksz;
+	if (blk_dread(bd, sector, 1, block) != 1)
+		return -EIO;
+
+	block[0] = slot;
+	return blk_dwrite(bd, sector, 1, block) == 1 ? 0 : -EIO;
+}
+
+static void obc_spl_switch_slot(struct blk_desc *bd)
+{
+	unsigned char next = obc_spl_slot == OBC_SLOT_A ? OBC_SLOT_B : OBC_SLOT_A;
+
+	printf("OBC SPL: switching boot slot %c -> %c for next boot\n",
+	       'A' + obc_spl_slot, 'A' + next);
+	if (obc_spl_slot_write(bd, next) == 0)
+		obc_spl_slot = next;
+}
+
 void spl_mmc_clear_cache(void)
 {
 	mmc = NULL;
@@ -734,23 +778,23 @@ int obc_spl_get_partition_info(const char *part_name, unsigned long *start_sect,
  * @part_prefix: 分区名前缀（如 "teeos" 或 "uboot"）
  *
  * 功能：
- *   从设备树分区表动态获取分区信息，依次尝试加载 part0 -> part1
- *   如果某个分区加载失败，自动尝试下一个备份分区
+ *   从设备树分区表获取当前槽位的分区信息并加载
+ *   如果加载失败，持久化切换到另一个槽位，供下一次启动使用
  *
  * 返回值：
  *   0       - 成功加载
- *   -ENOENT - 两个分区均加载失败
+ *   -ENOENT - 当前槽位加载失败
  */
 int obc_spl_load_image_with_retry(struct spl_image_info *spl_image,
                                     struct spl_boot_device *bootdev,
                                     const char *part_prefix)
 {
 	char part_name[32];
-	int i;
 	int ret;
 
-	/* 默认从分区0开始尝试，失败后仅尝试分区1 */
-	for (i = 0; i < 2; i++) {
+	/* 全链路使用同一槽位；失败后持久化切换，下一次启动使用另一槽位。 */
+	{
+		int i = obc_spl_slot;
 		unsigned long start_sect = 0;
 		unsigned int size_bytes = 0;
 
@@ -762,29 +806,34 @@ int obc_spl_load_image_with_retry(struct spl_image_info *spl_image,
 		if (ret) {
 			printf("OBC SPL: Failed to get partition info for %s, ret=%d\n",
 			       part_name, ret);
-			continue;
+			obc_spl_switch_slot(mmc_get_blk_desc(mmc));
+			return ret;
 		}
 
 		/* 校验分区 */
 		ret = obc_spl_mmc_load_verify(spl_image, bootdev, NULL, 0, start_sect);
 		if (ret) {
-			printf("OBC SPL: %s verify failed, ret=%d, trying next partition\n",
+			printf("OBC SPL: %s verify failed, ret=%d\n",
 			       part_name, ret);
-			continue;
+			obc_spl_switch_slot(mmc_get_blk_desc(mmc));
+			return ret;
 		}
 
 		/* 加载镜像 */
 		ret = spl_mmc_load(spl_image, bootdev, NULL, 0, start_sect + 1);
 		if (ret) {
-			printf("OBC SPL: %s load failed, ret=%d, trying next partition\n",
+			printf("OBC SPL: %s load failed, ret=%d\n",
 			       part_name, ret);
-			continue;
+			obc_spl_switch_slot(mmc_get_blk_desc(mmc));
+			return ret;
 		}
 
 		return 0;
 	}
 
-	printf("OBC SPL: Failed to load %s from all partitions (0, 1)\n", part_prefix);
+	printf("OBC SPL: Failed to load %s slot %c\n", part_prefix,
+	       'A' + obc_spl_slot);
+	obc_spl_switch_slot(mmc_get_blk_desc(mmc));
 	return -ENOENT;
 }
 
@@ -846,8 +895,15 @@ int obc_spl_fdt_init(struct spl_boot_device *bootdev)
 		return -1;
 	}
 
-	/* 依次尝试从 fdt0, fdt1 加载设备树 */
-	for (fdt_partition_idx = 0; fdt_partition_idx < fdt_partition_count; fdt_partition_idx++)
+	if (obc_spl_slot_read(bd, &obc_spl_slot) == 0)
+		printf("OBC SPL: selected boot slot %c\n", 'A' + obc_spl_slot);
+	else
+		printf("OBC SPL: sysflag unavailable, defaulting to slot A\n");
+
+	/* 只从当前槽位加载 FDT，确保 FDT 与其余启动组件属于同一槽位。 */
+	fdt_partition_idx = obc_spl_slot;
+	for (; fdt_partition_idx < fdt_partition_count &&
+	       fdt_partition_idx == obc_spl_slot; fdt_partition_idx++)
     {
 		/* 1# 从当前FDT分区地址读取 EMS 打包头 (512字节) */
 		fdt_sector = fdt_base_addrs[fdt_partition_idx] / bd->blksz;
@@ -906,15 +962,17 @@ int obc_spl_fdt_init(struct spl_boot_device *bootdev)
 
 	/* 检查是否成功加载了FDT */
 	if (!load_success) {
-		printf("SPL: Failed to load FDT from all partitions (fdt0, fdt1)\n");
+		printf("SPL: Failed to load FDT from slot %c\n", 'A' + obc_spl_slot);
+		obc_spl_switch_slot(bd);
 		return -1;
 	}
 
-	printf("SPL: Successfully loaded FDT from fdt%d partition\n", fdt_partition_idx);
+	printf("SPL: Successfully loaded FDT from fdt%d partition\n", obc_spl_slot);
 
 	/* 3# 初始化本地 BOARD_ABILITY_TABLE_T 结构 */
 	memset(&local_ability, 0, sizeof(BOARD_ABILITY_TABLE_T));
 	memcpy(local_ability.magic, OBC_MAGIC, OBC_MAGIC_LEN);
+	local_ability.stBoot.iPartType = obc_spl_slot;
 
 	/* 4# 解析 obc-mmc 分区信息 */
 	mmc_part_count = obc_parse_partitions(fdt_addr, "obc-mmc",

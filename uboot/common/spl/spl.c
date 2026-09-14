@@ -602,21 +602,24 @@ static int spl_load_image(struct spl_image_info *spl_image,
 #if defined(CONFIG_OBC_BASE)
 	u32 bootpart = obc_get_bootpart();
 	(void)bootpart;
+	/* 两种 TI 启动阶段都必须先解析 FDT 和 sysflag，建立统一槽位。 */
+	ret = obc_spl_fdt_init(&bootdev);
+	if (ret)
+		return ret;
 #if defined(CONFIG_OBC_BASE_TIBOOT)
     printf("obc base ti boot step, bootpart=%d\n", bootpart);
-    obc_spl_fdt_init(&bootdev);
 
-	/* tispl.bin (teeos) 加载，支持动态地址和失败重试
-	 * 默认从 teeos0 开始尝试，失败后尝试 teeos1
-	 */
+	/* tispl.bin (teeos) 只加载当前槽位；失败时切换槽位供下次启动。 */
 	ret = obc_spl_load_image_with_retry(spl_image, &bootdev, "teeos");
+	if (ret)
+		return ret;
 #endif //end CONFIG_OBC_BASE_TIBOOT
 #if defined(CONFIG_OBC_BASE_TIUBOOT)
 
-	/* u-boot.img 加载，支持动态地址和失败重试
-	 * 默认从 uboot0 开始尝试，失败后尝试 uboot1
-	 */
+	/* u-boot.img 只加载与 TEE OS 相同的当前槽位。 */
 	ret = obc_spl_load_image_with_retry(spl_image, &bootdev, "uboot");
+	if (ret)
+		return ret;
 #endif // end CONFIG_OBC_BASE_TIUBOOT
 #else
     printf("obc base disable\n");
