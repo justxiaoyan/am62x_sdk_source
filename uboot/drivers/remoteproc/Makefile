@@ -7,6 +7,7 @@
 obj-$(CONFIG_$(PHASE_)REMOTEPROC) += rproc-uclass.o rproc-elf-loader.o
 
 # Remote proc drivers - Please keep this list alphabetically sorted.
+obj-$(CONFIG_REMOTEPROC_AM62_A53_PSCI) += am62_a53_psci_rproc.o
 obj-$(CONFIG_K3_SYSTEM_CONTROLLER) += k3_system_controller.o
 obj-$(CONFIG_REMOTEPROC_ADI_SC5XX) += adi_sc5xx_rproc.o
 obj-$(CONFIG_REMOTEPROC_IMX) += imx_rproc.o

@@ -14,6 +14,20 @@ config REMOTEPROC
 
 # Please keep the configuration alphabetically sorted.
 
+config REMOTEPROC_AM62_A53_PSCI
+	bool "Support AM62x A53 AMP cores through PSCI"
+	select REMOTEPROC
+	depends on ARM64
+	depends on ARCH_K3
+	depends on ARM_PSCI_FW
+	depends on CLK
+	depends on OF_CONTROL
+	depends on POWER_DOMAIN
+	help
+	  Expose an AM62x secondary Cortex-A53 core through the remoteproc
+	  command interface. The firmware is already placed at its execution
+	  address and PSCI CPU_ON starts the core at that address.
+
 config K3_SYSTEM_CONTROLLER
 	bool "Support for TI' K3 System Controller"
 	select REMOTEPROC

@@ -808,7 +808,7 @@ source "net/Kconfig"
 
 endmenu
 
-source "emsbase/Kconfig"
+source "obcbase/Kconfig"
 
 source "drivers/Kconfig"
 

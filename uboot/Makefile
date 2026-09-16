@@ -1059,9 +1059,9 @@ UBOOTINCLUDE    := \
 	$(if $(CONFIG_NET_LWIP), -I$(srctree)/lib/lwip/lwip/src/include \
 		-I$(srctree)/lib/lwip/u-boot)
 
-UBOOTINCLUDE += -Iemsbase/board
-UBOOTINCLUDE += -Iemsbase/board/am62x/include
-UBOOTINCLUDE += -Iemsbase/include
+UBOOTINCLUDE += -Iobcbase/board
+UBOOTINCLUDE += -Iobcbase/board/am62x/include
+UBOOTINCLUDE += -Iobcbase/include
 
 NOSTDINC_FLAGS += -nostdinc -isystem $(shell $(CC) -print-file-name=include)
 
@@ -1114,7 +1114,7 @@ libs-y += $(if $(wildcard $(srctree)/board/$(BOARDDIR)/Makefile),board/$(BOARDDI
 
 libs-y := $(sort $(libs-y))
 
-libs-y += emsbase/
+libs-y += obcbase/
 
 u-boot-dirs	:= $(patsubst %/,%,$(filter %/, $(libs-y))) tools examples
 

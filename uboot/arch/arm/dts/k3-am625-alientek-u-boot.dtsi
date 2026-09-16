@@ -1,11 +1,32 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * U-Boot additions for ALIENTEK ATK-DLAM62xB
+ * U-Boot-only additions for ALIENTEK ATK-DLAM62xB.
+ *
+ * This file is included directly by the U-Boot R5/SPL board DTS and is the
+ * single maintained source for the U-Boot board overlay.  It is intentionally
+ * separate from the Linux/FDT source k3-am625-sk.dts.
  */
 
 #include "k3-am625-sk-u-boot.dtsi"
 
 #ifdef CONFIG_TARGET_AM625_A53_EVM
+
+/ {
+	aliases {
+		remoteproc0 = &a53_core3_rproc;
+	};
+
+	a53_core3_rproc: a53-core3-rproc {
+		compatible = "ti,am62-a53-psci-rproc";
+		remoteproc-name = "am62x-a53-core3";
+		ti,mpidr = /bits/ 64 <0x3>;
+		clocks = <&k3_clks 37 2>;
+		clock-names = "timer-fck";
+		assigned-clocks = <&k3_clks 37 2>;
+		assigned-clock-parents = <&k3_clks 37 3>;
+		power-domains = <&k3_pds 37 TI_SCI_PD_EXCLUSIVE>;
+	};
+};
 
 /* Override the SK filename inherited from k3-am625-sk-binman.dtsi. */
 &spl_am625_sk_dtb {
@@ -17,3 +38,31 @@
 };
 
 #endif
+
+&main_pmx0 {
+	main_mmc0_pins_default: main-mmc0-default-pins {
+		bootph-all;
+		pinctrl-single,pins = <
+			AM62X_IOPAD(0x220, PIN_INPUT, 0) /* (Y3) MMC0_CMD */
+			AM62X_IOPAD(0x218, PIN_INPUT, 0) /* (AB1) MMC0_CLK */
+			AM62X_IOPAD(0x214, PIN_INPUT, 0) /* (AA2) MMC0_DAT0 */
+			AM62X_IOPAD(0x210, PIN_INPUT_PULLUP, 0) /* (AA1) MMC0_DAT1 */
+			AM62X_IOPAD(0x20c, PIN_INPUT_PULLUP, 0) /* (AA3) MMC0_DAT2 */
+			AM62X_IOPAD(0x208, PIN_INPUT_PULLUP, 0) /* (Y4) MMC0_DAT3 */
+			AM62X_IOPAD(0x204, PIN_INPUT_PULLUP, 0) /* (AB2) MMC0_DAT4 */
+			AM62X_IOPAD(0x200, PIN_INPUT_PULLUP, 0) /* (AC1) MMC0_DAT5 */
+			AM62X_IOPAD(0x1fc, PIN_INPUT_PULLUP, 0) /* (AD2) MMC0_DAT6 */
+			AM62X_IOPAD(0x1f8, PIN_INPUT_PULLUP, 0) /* (AC2) MMC0_DAT7 */
+		>;
+	};
+};
+
+&sdhci0 {
+	bootph-all;
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_mmc0_pins_default>;
+	bus-width = <8>;
+	non-removable;
+	disable-wp;
+};
