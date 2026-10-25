@@ -124,3 +124,6 @@ pack
 unpack_demo
 
 obc_sdk/
+
+# 忽略官方文档资料（超出 GitHub 100MB 单文件限制）
+/doc/
